@@ -1,122 +1,123 @@
-//Robokabaddi on-vehicle ESP 
-#define in1 32 //Motor1  L293 Pin in1 
-#define in2 33 //Motor1  L293 Pin in2
-#define in3 25 //Motor2  L293 Pin in3 
-#define in4 26 //Motor2  L293 Pin in4 
+//D8:BC:38:FC:76:08
+/*
+  Rui Santos
+  Complete project details at https://RandomNerdTutorials.com/esp-now-esp32-arduino-ide/
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files.
+  
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+*/
+#include <esp_now.h>
+#include <WiFi.h>
 
-void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
-  //for bo dc motors
-  pinMode(in1, OUTPUT); 
-  pinMode(in2, OUTPUT); 
-  pinMode(in3, OUTPUT); 
-  pinMode(in4, OUTPUT); 
+#define in1 32 //Motor1 PWM
+#define in2 33 //Motor1 DIR
+#define in3 26 //Motor2  L293 Pin in3 
+#define in4 25 //Motor2  L293 Pin in4 
+
+// Structure example to receive data
+// Must match the sender structure
+typedef struct struct_message {
+    float a;
+    float b;
+} struct_message;
+
+// Create a struct_message called myData
+struct_message myData;
+
+// callback function that will be executed when data is received
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+  memcpy(&myData, incomingData, sizeof(myData));
+  // Serial.print("Bytes received: ");
+  // Serial.println(len);
+  // Serial.print("BX: ");
+  // Serial.println(myData.a);
+  // Serial.print("LY: ");
+  // Serial.println(myData.b);
 
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-
-      if (command == 'F'){
-      Forward(); // move forward
-    }else if (command == 'L'){
-      Left();  // move left
-    }else if (command == 'R'){
-      Right();  // move right
-    }else{
-      Stop();     // stop
-    }
-    
-}
-
-void Forward(){  //forword
-
-analogWrite(in1, 80); //Right Motor forword Pin 
+void Forward(int a){  //forword
+analogWrite(in1, a); //Right Motor forword Pin 
 analogWrite(in2, 0);  //Right Motor backword Pin 
+Serial.printf("%d, F\n",a);
+analogWrite(in3, a); //Left Motor backword Pin 
+analogWrite(in4, 255);  //Left Motor forword Pin 
+} 
 
-analogWrite(in3, 80);  //Left Motor backword Pin 
+void Right(int a){ //turnRight
+analogWrite(in1, a); //Right Motor forword Pin 
+analogWrite(in2, 0);  //Right Motor backword Pin 
+Serial.printf("%d, R\n",a);
+analogWrite(in3, a);  //Left Motor backword Pin 
 analogWrite(in4, 0); //Left Motor forword Pin 
-
-}
-void Right(){ //turnRight
-
-analogWrite(in1, 170);  //Right Motor forward Pin 
-
-analogWrite(in2, 0); //Right Motor backward Pin  
-
-analogWrite(in3, 0);  //Left Motor backward Pin 
-
-analogWrite(in4, 170); //Left Motor forward Pin 
-
 }
 
-void Left(){ //turnLeft
-
-analogWrite(in1, 0); //Right Motor forword Pin 
-analogWrite(in2, 170);  //Right Motor backword Pin 
-
-analogWrite(in3, 170); //Left Motor backword Pin 
-analogWrite(in4, 0);  //Left Motor forword Pin 
-
+void Left(int a){ //turnLeft
+analogWrite(in1, a); //Right Motor forword Pin 
+analogWrite(in2, 255);  //Right Motor backword Pin 
+Serial.printf("%d, L\n",a);
+analogWrite(in3, a); //Left Motor backword Pin 
+analogWrite(in4, 255);  //Left Motor forword Pin 
 }
 
 void Stop(){ //stop
-
 analogWrite(in1, 0); //Right Motor forword Pin 
 analogWrite(in2, 0); //Right Motor backword Pin 
+Serial.printf("S\n");
 analogWrite(in3, 0); //Left Motor backword Pin 
 analogWrite(in4, 0); //Left Motor forword Pin 
-
 }
 
+void Reverse(int a){  //backword
+analogWrite(in1, a);  //Right Motor forward Pin 
+analogWrite(in2, 255); //Right Motor backward Pin  
+Serial.printf("%d, B\n",a);
+analogWrite(in3, a);  //Left Motor backward Pin 
+analogWrite(in4,0); //Left Motor forward Pin 
 
-// #include <esp_now.h>
-// #include <WiFi.h>
+}
+ 
+void setup() {
+  // Initialize Serial Monitor
+  Serial.begin(115200);
+  
+  // Set device as a Wi-Fi Station
+  WiFi.mode(WIFI_STA);
 
-// // Replace with the MAC address of the sending ESP32
-// uint8_t senderMacAddress[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+  // Init ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+  
+  // Once ESPNow is successfully Init, we will register for recv CB to
+  // get recv packer info
+  esp_now_register_recv_cb(OnDataRecv);
+}
+ 
+void loop() {
 
-// void setup() {
-//   Serial.begin(115200);
-
-//   // Set device as a Wi-Fi Station
-//   WiFi.mode(WIFI_STA);
-
-//   // Initialize ESP-NOW
-//   if (esp_now_init() != ESP_OK) {
-//     Serial.println("Error initializing ESP-NOW");
-//     return;
-//   }
-
-//   // Register peer
-//   esp_now_peer_info_t peerInfo;
-//   memcpy(peerInfo.peer_addr, senderMacAddress, 6);
-//   peerInfo.channel = 0;
-//   peerInfo.encrypt = false;
-
-//   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-//     Serial.println("Failed to add peer");
-//     return;
-//   }
-// }
-
-// void loop() {
-//   uint8_t receivedData[32]; // Adjust the buffer size based on your data size
-//   int dataLength = sizeof(receivedData);
-
-//   // Receive data
-//   esp_err_t result = esp_now_recv(NULL, receivedData, &dataLength, 0);
-
-//   if (result == ESP_OK) {
-//     // Print received data
-//     String receivedString = String((char*)receivedData);
-//     Serial.println("Received data: " + receivedString);
-//   } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
-//     // No data received
-//   } else {
-//     Serial.println("Error receiving data");
-//   }
-
-//   delay(100); // Adjust the delay based on your requirements
-// }
+  // Serial.print("X: ");
+  // Serial.print(myData.a);
+  // Serial.print("   Y: ");
+  // Serial.println(myData.b);
+  if(myData.a > 130.0){
+      Forward((myData.a>200.0) ? 200:80); // move forward
+      // Serial.printf("F,%d\n",(myData.a>200) ? 240:80);
+    }else if (myData.b < 80.0){
+      Left((myData.b<40.0) ? 200:80);
+      // Serial.printf("L,%d\n",(myData.b<40.0) ? 240:80);
+    }else if (myData.b > 150.0){
+      Right((myData.b>200.0) ? 200:70);
+      // Serial.printf("R,%d\n",(myData.b>200.0) ? 240:80);
+    }else if (myData.a < 80.0){
+      Reverse((myData.a<40.0) ? 200:80); // move forward
+      // Serial.printf("B,%d\n",(myData.a<40) ? 240:80);
+    }else{
+      Stop();    // stop
+      Serial.printf("stop loop");
+    }
+}
